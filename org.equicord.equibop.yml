@@ -33,12 +33,23 @@ modules:
     - name: Equibop
       buildsystem: simple
       build-options:
-          env:
-              SKIP_BUN_DOWNLOAD: "true"
+          strip: false
+          no-debuginfo: true
       build-commands:
           - tar xzf node_modules.tar.gz
 
           - bun-build/bun run build
+
+          - mkdir -p resources/arrpc
+          - |
+              if [ "$FLATPAK_ARCH" = "x86_64" ]; then
+                  cp arrpc-bun-linux-x64 resources/arrpc/arrpc-linux-x64
+              elif [ "$FLATPAK_ARCH" = "aarch64" ]; then
+                  cp arrpc-bun-linux-arm64 resources/arrpc/arrpc-linux-arm64
+              fi
+              chmod +x resources/arrpc/arrpc-*
+              cp detectable.json detectable_fixes.json resources/arrpc/
+
           - export PATH="$PWD/bun-build:$PATH" && . /usr/lib/sdk/node20/enable.sh && node_modules/.bin/electron-builder --dir --linux dir --config.electronDist=node_modules/electron/dist
 
           - |
@@ -51,16 +62,6 @@ modules:
                 exit 1
               fi
 
-              if [ "$FLATPAK_ARCH" = "x86_64" ]; then
-                  BUN_PLATFORM="linux-x64"
-              elif [ "$FLATPAK_ARCH" = "aarch64" ]; then
-                  BUN_PLATFORM="linux-arm64"
-              fi
-
-              mkdir -p "$DIST_DIR/resources/bun/$BUN_PLATFORM/bun-$BUN_PLATFORM"
-              cp bun-build/bun "$DIST_DIR/resources/bun/$BUN_PLATFORM/bun-$BUN_PLATFORM/bun"
-              chmod +x "$DIST_DIR/resources/bun/$BUN_PLATFORM/bun-$BUN_PLATFORM/bun"
-
               install -Dm644 build/icon.svg /app/share/icons/hicolor/scalable/apps/org.equicord.equibop.svg
 
               desktop-file-edit --set-key=Exec --set-value="startequibop %U" build/org.equicord.equibop.desktop
@@ -68,15 +69,15 @@ modules:
               install -Dm755 startequibop /app/bin/startequibop
               install -D build/org.equicord.equibop.metainfo.xml -t /app/share/metainfo/
 
-              mv "$DIST_DIR" /app/bin/equibop
+              cp --reflink=auto -r "$DIST_DIR" /app/bin/equibop
 
       sources:
           - type: file
             path: startequibop
 
           - type: archive
-            url: https://github.com/Equicord/Equibop/archive/refs/tags/v3.0.9.tar.gz
-            sha512: f38a53241e441ea1ae01ad5c198bb8ac838a769d21f0e7353c05d7670322d6c218012f510ec8b3e39af71a78e221b4fe36795c281ed443c9b823f2b529f249e3
+            url: https://github.com/Equicord/Equibop/archive/refs/tags/v3.1.0.tar.gz
+            sha512: b537b37f8ea562335e007e2a82515ec685609808840095dcd7da69e97195c65ca24a32b440bdcb0d3af5505a34db28bdf6129d610c5aa668e12dd6141ea3b2f7
             strip-components: 1
             x-checker-data:
                 type: json
@@ -92,9 +93,9 @@ modules:
             path: gitHash.patch
 
           - type: file
-            url: https://github.com/Equicord/Equibop/releases/download/v3.0.9/node_modules-x64.tar.gz
+            url: https://github.com/Equicord/Equibop/releases/download/v3.1.0/node_modules-x64.tar.gz
             dest-filename: node_modules.tar.gz
-            sha512: fa36abe4378794b78a99dcde687b7377e337624687cf177d1c63e5de7daf48bf3c0f7e40238aa54246b6c0e51c542d52f4456d79b8d44bba46cdc05e41802cf4
+            sha512: 0343d41b0ad3ab5ed4ad185304ffc84baf7d942fdabbf15f086a8a74e8e322a3037180f3a3b9f9887820b48b7508b740cf8abb7739d0103b1fbad0854338a96b
             only-arches: [x86_64]
             x-checker-data:
                 type: json
@@ -105,9 +106,9 @@ modules:
                     | .browser_download_url
 
           - type: file
-            url: https://github.com/Equicord/Equibop/releases/download/v3.0.9/node_modules-arm64.tar.gz
+            url: https://github.com/Equicord/Equibop/releases/download/v3.1.0/node_modules-arm64.tar.gz
             dest-filename: node_modules.tar.gz
-            sha512: 4b858fede5fb683b86da6158e227d29292908be4bbf6fd9223ed259dbaf83917c482f0c949f340648dbc6ba31c275ee042f2c4cdde368c44a0e422a352b476d1
+            sha512: 0925834785c44bc036e38b02ce517466120c51312d14974cd3e2dea99465aa178211d1050c35c45f12492be13a653b8fbd2bb4db25048ccf38fe8fa08fc33f0b
             only-arches: [aarch64]
             x-checker-data:
                 type: json
@@ -117,16 +118,15 @@ modules:
                     .assets[] | select(.name == "node_modules-arm64.tar.gz")
                     | .browser_download_url
 
-          # Electron binaries for building
           - type: archive
-            url: https://github.com/electron/electron/releases/download/v38.4.0/electron-v38.4.0-linux-x64.zip
-            sha512: b20ed3f62b408b69b0d64413b13efd3da3cffa7f16d7c5d658ada05f7975961c9127711cf2dab2023a2de6d9c5085dd83b35f6de3e1c602e283b9703642ea3d7
+            url: https://github.com/electron/electron/releases/download/v39.0.0/electron-v39.0.0-linux-x64.zip
+            sha512: 9b30e5e72b7582e242f99f825418a8f2db11a0313159574fe4378b11345a73368f61b0fc2de2617098991db2f1b5cd2a9e7e9a4eb404836f8d458337b06142b8
             dest: node_modules/electron/dist
             only-arches: [x86_64]
 
           - type: archive
-            url: https://github.com/electron/electron/releases/download/v38.4.0/electron-v38.4.0-linux-arm64.zip
-            sha512: 729ed9f30e1bf0e4e108474c6356b0437379268c57791ebb4cadaaffc273dc1f585fd7a7e4e4ebbe23f801623feca0e5d4443dc8f5ce4080de17b034d221fee4
+            url: https://github.com/electron/electron/releases/download/v39.0.0/electron-v39.0.0-linux-arm64.zip
+            sha512: 8bf92cd2d24b4b64377dd37bad9d32e05cc4ba85efc65506403bc81f837556161d58219f002bcf5bde421cd21dd9237982a73a8463bbd7d971708c1a089a6733
             dest: node_modules/electron/dist
             only-arches: [aarch64]
 
@@ -151,3 +151,25 @@ modules:
                 url: https://api.github.com/repos/oven-sh/bun/releases/latest
                 version-query: .tag_name | sub("bun-v"; "")
                 url-query: .assets[] | select(.name == "bun-linux-aarch64.zip") | .browser_download_url
+
+          - type: file
+            url: https://github.com/Creationsss/arrpc-bun/releases/download/v1.2.9/arrpc-bun-linux-x64
+            sha512: 5ca183e27603a7041a4e70f141ac430afc2157e9743ebac3ff48fb2d6689379be0a6e708e193a5124ddbf7a5af3f6f3d8bf09fb143454d3d693531538fcc8eee
+            dest-filename: arrpc-bun-linux-x64
+            only-arches: [x86_64]
+
+          - type: file
+            url: https://github.com/Creationsss/arrpc-bun/releases/download/v1.2.9/arrpc-bun-linux-arm64
+            sha512: 4a101eb84d209a5a6a95f363ecdaa3bdf5243a831b2af4f1bd291fa532f00bd4c5e70aceb1650cdf3f559487b3cf125d26df0b175758838cbb925f03f0146070
+            dest-filename: arrpc-bun-linux-arm64
+            only-arches: [aarch64]
+
+          - type: file
+            url: https://raw.githubusercontent.com/Creationsss/arrpc-bun/v1.2.9/detectable.json
+            sha512: 68a6ce1f08cdeb70fee4172ed7e533b2c5362f07eacf502f88d8109c8d0bcf267583ed80e8924e46d7c0fb396981d01cd759257c2dcaa4a92e832673b7b72e89
+            dest-filename: detectable.json
+
+          - type: file
+            url: https://raw.githubusercontent.com/Creationsss/arrpc-bun/v1.2.9/detectable_fixes.json
+            sha512: 40e4a1b7a492906554a1f7746c4c3e2d6e637735bd8d1e1636c08d5fc5cd5bb4b3343cef04cac330bef7e1ea8c5d6e4335ffe156bfadbc43bdb42f7a89c2afe4
+            dest-filename: detectable_fixes.json
